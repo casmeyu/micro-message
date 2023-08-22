@@ -5,19 +5,12 @@ import (
 	"time"
 
 	"github.com/casmeyu/micro-message/structs"
+	"github.com/casmeyu/micro-message/types"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
-type Conversation struct {
-	CreatedAt time.Time `json:"createdAt" gorm:"not null"`
-	UpdatedAt time.Time `json:"updatedAt" gorm:"default:null"`
-	DeletedAt time.Time `json:"deletedAt" gorm:"default:null"`
-	User1     int       `json:"user1" gorm:"primaryKey; not null"`
-	User2     int       `json:"user2" gorm:"primaryKey; not null"`
-}
-
-func StartConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceResponse {
+func StartConversation(userId1 uint, userId2 uint, db *gorm.DB) structs.ServiceResponse {
 	getConvResponse := GetConversation(userId1, userId2, db)
 	if getConvResponse.Success == true {
 		return getConvResponse
@@ -26,11 +19,11 @@ func StartConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceRes
 	}
 }
 
-func GetConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceResponse {
-	var conv Conversation
+func GetConversation(userId1 uint, userId2 uint, db *gorm.DB) structs.ServiceResponse {
+	var conv types.Conversation
 	res := structs.ServiceResponse{}
 
-	tx := db.Model(&Conversation{}).Where("user1 = ?", userId1).Where("user2 = ?", userId2).First(&conv)
+	tx := db.Model(&types.Conversation{}).Where("(user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)", userId1, userId2, userId2, userId1).First(&conv)
 	if tx.Error != nil {
 		log.Println("[ConversationService] (GetConversation) - Error occurred while getting conversation", tx.Error.Error())
 		res.Err = tx.Error.Error()
@@ -44,16 +37,19 @@ func GetConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceRespo
 	return res
 }
 
-func CreateConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceResponse {
-	var conv Conversation
+func CreateConversation(userId1 uint, userId2 uint, db *gorm.DB) structs.ServiceResponse {
+	var conv types.Conversation
 	res := structs.ServiceResponse{}
-	tx := db.Model(&Conversation{}).Where("user1 = ?", userId1).Where("user2 = ?", userId2).First(&conv)
+
+	tx := db.Model(&types.Conversation{}).Where("(user1 = ? AND user2 = ?) OR (user1 = ? AND user2 = ?)", userId1, userId2, userId2, userId1).First(&conv)
 	if tx.Error != nil {
 		// If there is no conversation create it
 		if tx.Error.Error() == "record not found" {
 			conv.CreatedAt = time.Now()
 			conv.User1 = userId1
 			conv.User2 = userId2
+			conv.ID = 2
+
 			tx := db.Create(conv) // Adding conversation to database
 			if tx.Error != nil {
 				log.Println("Error while creating conversation", tx.Error)
@@ -75,5 +71,32 @@ func CreateConversation(userId1 int, userId2 int, db *gorm.DB) structs.ServiceRe
 	res.Success = false
 	res.Status = fiber.StatusBadRequest
 	res.Err = "Conversation already exists"
+	return res
+}
+
+func GetMessages(convId uint, db *gorm.DB) structs.ServiceResponse {
+	var res structs.ServiceResponse
+	var conv types.Conversation
+	var messages []types.Message
+	var tx *gorm.DB
+
+	tx = db.Model(&types.Conversation{}).Where("id = ?", convId).First(&conv)
+	if tx.Error != nil {
+		log.Println("[ConversationService] (GetMessages) - Error occurred while getting conversation by id", tx.Error.Error())
+		res.Err = "Error getting conversation"
+		res.Status = fiber.StatusInternalServerError
+		return res
+	}
+	tx = db.Model(&types.Message{}).Where("conversation_id = ?", convId).Find(&messages)
+	if tx.Error != nil {
+		log.Println("[ConversationService] (GetMessages) - Error occurred while getting conversation messages", tx.Error.Error())
+		res.Err = "Error getting conversation messages"
+		res.Status = fiber.StatusInternalServerError
+		return res
+	}
+
+	res.Success = true
+	res.Status = fiber.StatusOK
+	res.Result = messages
 	return res
 }

@@ -1,7 +1,6 @@
 package structs
 
 // Config
-
 type AppConfig struct {
 	Name string `json:"name"`
 	Ip   string `json:"ip"`
@@ -21,17 +20,7 @@ type Config struct {
 
 // END Config
 
-// Message
-type Message struct {
-	from int
-	to   int
-	text string
-}
-
-// END Message
 // Services
-//
-//	General
 type ServiceResponse struct {
 	Success bool
 	Status  int
@@ -41,11 +30,11 @@ type ServiceResponse struct {
 
 // END Services
 
-// General
+// Validator
 type IError struct {
 	Field string
 	Tag   string
 	Value string
 }
 
-// END General
+// END Validator
