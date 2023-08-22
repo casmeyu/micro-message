@@ -3,8 +3,8 @@ package types
 import "time"
 
 type User struct {
-	ID       uint   `json:"id" gorm:"primarykey"`
-	Contacts []User `json:"contacts" gorm:"many2many:contacts"`
+	ID       uint    `json:"id" gorm:"primarykey"`
+	Contacts []*User `json:"contacts" gorm:"many2many:contacts"`
 }
 
 type Conversation struct {
